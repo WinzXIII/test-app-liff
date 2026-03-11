@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My LIFF App</title>
+  <!-- นำเข้า LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; text-align: center; background-color: #f5f5f5; }
+    .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+    button { padding: 12px 24px; font-size: 16px; margin-top: 20px; background: #06C755; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; }
+    button:hover { background: #05b34c; }
+    #profile-img { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; display: none; margin: 0 auto 15px auto; }
+    #status { color: #666; font-size: 14px; margin-bottom: 20px; }
+    #error-msg { color: #ff3b30; font-size: 14px; margin-top: 15px; word-wrap: break-word; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ยินดีต้อนรับสู่ LIFF</h1>
+    <img id="profile-img" src="" alt="Profile Image">
+    <h2 id="profile-name">กำลังโหลด...</h2>
+    <p id="status">กำลังเชื่อมต่อกับระบบ LINE...</p>
+    
+    <button id="sendBtn" style="display:none;" onclick="sendMessage()">ส่งข้อความเข้าห้องแชท</button>
+    <p id="error-msg"></p>
+  </div>
+
+  <script>
+    // LIFF ID ของคุณ
+    const LIFF_ID = "2009412063-oVeJr2wq"; 
+
+    async function main() {
+      const statusEl = document.getElementById('status');
+      const nameEl = document.getElementById('profile-name');
+      const imgEl = document.getElementById('profile-img');
+      const errorEl = document.getElementById('error-msg');
+      const btnEl = document.getElementById('sendBtn');
+      
+      try {
+        statusEl.innerText = "กำลังเริ่มต้น LIFF...";
+        await liff.init({ liffId: LIFF_ID });
+        
+        statusEl.innerText = "เชื่อมต่อสำเร็จ! ตรวจสอบการเข้าสู่ระบบ...";
+        
+        if (liff.isLoggedIn()) {
+          statusEl.innerText = "กำลังดึงข้อมูลโปรไฟล์...";
+          const profile = await liff.getProfile();
+          
+          // แสดงข้อมูลผู้ใช้
+          nameEl.innerText = "สวัสดีคุณ " + profile.displayName;
+          if(profile.pictureUrl) {
+            imgEl.src = profile.pictureUrl;
+            imgEl.style.display = 'block';
+          }
+          statusEl.innerText = "พร้อมใช้งาน";
+          btnEl.style.display = 'block';
+          
+        } else {
+          statusEl.innerText = "กำลังพาท่านไปหน้าเข้าสู่ระบบ...";
+          liff.login();
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+        errorEl.innerText = "รายละเอียด Error: " + err.message;
+      }
+    }
+
+    function sendMessage() {
+      liff.sendMessages([
+        { type: 'text', text: 'สวัสดี! ฉันส่งข้อความนี้มาจากหน้าเว็บ LIFF (โฮสต์บน Vercel)' }
+      ]).then(() => {
+        alert('ส่งข้อความสำเร็จ!');
+        liff.closeWindow(); 
+      }).catch((err) => {
+        alert('เกิดข้อผิดพลาดในการส่งข้อความ: ' + err.message);
+      });
+    }
+
+    // เริ่มการทำงาน
+    window.onload = main;
+  </script>
+</body>
+</html>
