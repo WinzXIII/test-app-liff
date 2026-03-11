@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบตรวจสอบสมาชิก</title>
-  <!-- นำเข้า LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; background-color: #f5f5f5; }
     .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
     
-    /* สไตล์สำหรับฟอร์มกรอกข้อมูล */
     .input-group { margin-bottom: 15px; text-align: left; }
     .input-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
     .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
@@ -21,6 +19,9 @@
     .btn-green { background: #06C755; margin-top: 10px; }
     .btn-green:hover { background: #05b34c; }
 
+    .btn-red { background: #ff3b30; margin-top: 10px; font-size: 14px; padding: 8px 15px; }
+    .btn-red:hover { background: #cc2e26; }
+
     #profile-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
     #result-box { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; text-align: left; display: none; border: 1px solid #ddd; }
     #loading { color: #ff9800; font-weight: bold; display: none; margin-top: 10px; }
@@ -28,25 +29,25 @@
 </head>
 <body>
   <div class="container">
-    <!-- ส่วนแสดงโปรไฟล์ LINE -->
     <div id="profile-section">
       <h3 style="margin: 0;" id="profile-name">กำลังโหลดข้อมูล LINE...</h3>
     </div>
 
-    <!-- ส่วนฟอร์มกรอกข้อมูล -->
     <h3>ตรวจสอบข้อมูลสมาชิก</h3>
     <div class="input-group">
       <label>เลขบัตรประชาชน (Customer ID):</label>
-      <input type="text" id="customerId" placeholder="เช่น 3309900118024" value="3309900118024">
+      <input type="text" id="customerId" placeholder="เช่น 3309900118024">
     </div>
     <div class="input-group">
       <label>รหัสสมาชิก (Member ID):</label>
-      <input type="text" id="memberId" placeholder="เช่น 034658" value="034658">
+      <input type="text" id="memberId" placeholder="เช่น 034658">
     </div>
+    
     <button onclick="fetchData()">ค้นหาข้อมูล</button>
+    <button class="btn-red" onclick="clearSavedData()" id="clearBtn" style="display:none;">ล้างข้อมูลที่จำไว้</button>
+    
     <p id="loading">กำลังค้นหาข้อมูล...</p>
 
-    <!-- ส่วนแสดงผลลัพธ์จาก API -->
     <div id="result-box">
       <div id="api-data"></div>
       <button class="btn-green" id="sendBtn" style="display:none;" onclick="sendToChat()">ส่งข้อมูลเข้าห้องแชท</button>
@@ -54,20 +55,45 @@
   </div>
 
   <script>
-    const LIFF_ID = "2009412063-oVeJr2wq"; // LIFF ID ของคุณ
-    let currentMemberData = null; // เก็บข้อมูลไว้ส่งเข้าแชท
+    const LIFF_ID = "2009412063-oVeJr2wq"; 
+    let currentMemberData = null; 
 
     async function main() {
       await liff.init({ liffId: LIFF_ID });
       if (liff.isLoggedIn()) {
         const profile = await liff.getProfile();
         document.getElementById('profile-name').innerText = "สวัสดีคุณ " + profile.displayName;
+        
+        // 1. เช็คว่ามีข้อมูลที่เคยเซฟไว้ในเครื่องหรือไม่
+        loadSavedData();
       } else {
         liff.login();
       }
     }
 
-    // ฟังก์ชันยิง API
+    // ฟังก์ชันดึงข้อมูลที่เคยเซฟไว้
+    function loadSavedData() {
+      const savedCid = localStorage.getItem('saved_customerId');
+      const savedMid = localStorage.getItem('saved_memberId');
+      
+      if (savedCid && savedMid) {
+        document.getElementById('customerId').value = savedCid;
+        document.getElementById('memberId').value = savedMid;
+        document.getElementById('clearBtn').style.display = 'block'; // โชว์ปุ่มล้างข้อมูล
+      }
+    }
+
+    // ฟังก์ชันลบข้อมูลที่จำไว้
+    function clearSavedData() {
+      localStorage.removeItem('saved_customerId');
+      localStorage.removeItem('saved_memberId');
+      document.getElementById('customerId').value = '';
+      document.getElementById('memberId').value = '';
+      document.getElementById('clearBtn').style.display = 'none';
+      document.getElementById('result-box').style.display = 'none';
+      alert('ล้างข้อมูลเรียบร้อยแล้ว');
+    }
+
     async function fetchData() {
       const customerId = document.getElementById('customerId').value.trim();
       const memberId = document.getElementById('memberId').value.trim();
@@ -77,31 +103,28 @@
         return;
       }
 
-      // แสดง Loading ปิดกล่องผลลัพธ์
       document.getElementById('loading').style.display = 'block';
       document.getElementById('result-box').style.display = 'none';
       document.getElementById('sendBtn').style.display = 'none';
 
       try {
-        // สร้าง URL ตามที่ระบุ
         const apiUrl = `https://uat-chapanakij.thaijobjob.com/api/uat/chatme/member/${customerId}/${memberId}`;
-        
-        // ยิง Request แบบ POST
         const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: { 'Content-Type': 'application/json' }
         });
 
         const result = await response.json();
 
-        // ตรวจสอบว่า API ตอบกลับมาสำเร็จ (200) หรือไม่
         if (result.respCode === "200" && result.data) {
           const data = result.data;
-          currentMemberData = data; // เก็บไว้ใช้ตอนกดปุ่มส่งเข้าแชท
+          currentMemberData = data; 
 
-          // จัดรูปแบบข้อมูลที่จะแสดงบนหน้าเว็บ
+          // 2. เมื่อดึงข้อมูลสำเร็จ ให้บันทึกข้อมูลลง Local Storage
+          localStorage.setItem('saved_customerId', customerId);
+          localStorage.setItem('saved_memberId', memberId);
+          document.getElementById('clearBtn').style.display = 'block'; // โชว์ปุ่มล้างข้อมูล
+
           let html = `
             <p><strong>ชื่อ-นามสกุล:</strong> ${data.Name}</p>
             <p><strong>สถานะ:</strong> <span style="color:green;">${data.Status}</span></p>
@@ -114,28 +137,22 @@
           
           document.getElementById('api-data').innerHTML = html;
           document.getElementById('result-box').style.display = 'block';
-          document.getElementById('sendBtn').style.display = 'block'; // โชว์ปุ่มส่งเข้าแชท
+          document.getElementById('sendBtn').style.display = 'block'; 
         } else {
-          // กรณีไม่พบข้อมูล
           document.getElementById('api-data').innerHTML = `<p style="color:red;">ไม่พบข้อมูล หรือเกิดข้อผิดพลาด (${result.respMsg})</p>`;
           document.getElementById('result-box').style.display = 'block';
         }
-
       } catch (error) {
         console.error(error);
         document.getElementById('api-data').innerHTML = `<p style="color:red;">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: ${error.message}</p>`;
         document.getElementById('result-box').style.display = 'block';
       } finally {
-        // ซ่อน Loading
         document.getElementById('loading').style.display = 'none';
       }
     }
 
-    // ฟังก์ชันส่งข้อมูลเข้าห้องแชท
     function sendToChat() {
       if (!currentMemberData) return;
-
-      // จัดข้อความที่จะส่งเข้าไปใน LINE
       const textMessage = 
 `[ข้อมูลสมาชิก]
 ชื่อ: ${currentMemberData.Name}
@@ -147,13 +164,12 @@
         { type: 'text', text: textMessage }
       ]).then(() => {
         alert('ส่งข้อมูลเข้าห้องแชทสำเร็จ!');
-        liff.closeWindow(); // ปิดหน้าต่าง LIFF
+        liff.closeWindow(); 
       }).catch((err) => {
         alert('เกิดข้อผิดพลาดในการส่งข้อความ: ' + err.message);
       });
     }
 
-    // เริ่มทำงานเมื่อเปิดหน้าเว็บ
     window.onload = main;
   </script>
 </body>
