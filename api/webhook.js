@@ -1,6 +1,5 @@
 const line = require('@line/bot-sdk');
 
-// ดึงค่า Token และ Secret จาก Environment Variables ของ Vercel
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET
@@ -8,9 +7,7 @@ const config = {
 
 const client = new line.Client(config);
 
-// ฟังก์ชันหลักที่ Vercel จะเรียกใช้งาน
 export default async function handler(req, res) {
-  // รับเฉพาะ HTTP POST เท่านั้น
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
@@ -18,25 +15,33 @@ export default async function handler(req, res) {
   try {
     const events = req.body.events;
     
-    // วนลูปจัดการทุกอีเวนต์ที่ LINE ส่งมา
+    // ถ้าไม่มี events (เผื่อกรณีระบบส่งเช็คสถานะเฉยๆ)
+    if (!events || events.length === 0) {
+      return res.status(200).send('OK');
+    }
+    
     const results = await Promise.all(events.map(async (event) => {
-      // ตรวจสอบว่าเป็นข้อความประเภท Text หรือไม่
+      // 🌟 [สำคัญ] ดักจับการกดปุ่ม Verify จาก LINE Developers
+      // ถ้าเป็น token จำลอง ให้ข้ามการทำงานไปเลย ไม่ต้องตอบกลับ
+      if (event.replyToken === '00000000000000000000000000000000' || event.replyToken === 'ffffffffffffffffffffffffffffffff') {
+        return null;
+      }
+
       if (event.type !== 'message' || event.message.type !== 'text') {
         return null;
       }
 
-      // บอทตอบกลับตามที่พิมพ์มา
+      // ตอบกลับข้อความ
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: 'คุณพิมพ์ว่า: ' + event.message.text
       });
     }));
 
-    // ตอบกลับ LINE ว่ารับข้อมูลสำเร็จ (HTTP 200)
     return res.status(200).json(results);
     
   } catch (error) {
-    console.error(error);
+    console.error("Error from webhook:", error.message || error);
     return res.status(500).json({ message: 'Internal Server Error' });
   }
 }
