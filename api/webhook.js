@@ -8,7 +8,6 @@ const config = {
 
 const client = new line.Client(config);
 
-// บังคับให้ใช้ KV_REST_API_URL และ KV_REST_API_TOKEN เท่านั้น
 const redisUrl = process.env.KV_REST_API_URL;
 const redisToken = process.env.KV_REST_API_TOKEN;
 
@@ -27,11 +26,6 @@ module.exports = async function handler(req, res) {
       const userId = event.source.userId;
 
       if (userMessage === "A") {
-        if (!redisUrl || !redisToken) {
-           console.error("Webhook missing Redis config");
-           return client.replyMessage(event.replyToken, { type: "text", text: "ระบบกำลังปรับปรุง (Missing Redis Config)" });
-        }
-
         const redis = new Redis({ url: redisUrl, token: redisToken });
         const key = `memberlink:${userId}`;
         
@@ -48,24 +42,44 @@ module.exports = async function handler(req, res) {
           });
         }
 
-        const apiUrl = `https://uat-chapanakij.thaijobjob.com/api/uat/chatme/member/${encodeURIComponent(linkData.customerId)}/${encodeURIComponent(linkData.memberId)}`;
-        const apiResp = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-        const result = await apiResp.json();
+        // --- ส่วนที่ปรับปรุง: ดักจับ Error ตอนยิง API ปลายทาง ---
+        try {
+          // ใช้ AbortController เพื่อบังคับ Timeout ที่ 8 วินาที จะได้ตอบกลับ LINE ทัน
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        if (result.respCode === "200" && result.data) {
-          const d = result.data;
-          const p = d.PaymentInfo || {};
-          const replyMsg = `[ข้อมูลสมาชิก]\n👤 ชื่อ: ${d.Name}\n📌 สถานะ: ${d.Status}\n📝 ประเภท: ${d.RegisType}\n💳 การชำระเงิน: ${p.PayForm || 'หักเงินจากธนาคาร'}`;
-          return client.replyMessage(event.replyToken, { type: "text", text: replyMsg });
-        } else {
-          return client.replyMessage(event.replyToken, { type: "text", text: "❌ ไม่พบข้อมูลในระบบหลัก" });
+          const apiUrl = `https://uat-chapanakij.thaijobjob.com/api/uat/chatme/member/${encodeURIComponent(linkData.customerId)}/${encodeURIComponent(linkData.memberId)}`;
+          const apiResp = await fetch(apiUrl, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          const result = await apiResp.json();
+
+          if (result.respCode === "200" && result.data) {
+            const d = result.data;
+            const p = d.PaymentInfo || {};
+            const replyMsg = `[ข้อมูลสมาชิก]\n👤 ชื่อ: ${d.Name}\n📌 สถานะ: ${d.Status}\n📝 ประเภท: ${d.RegisType}\n💳 การชำระเงิน: ${p.PayForm || 'หักเงินจากธนาคาร'}`;
+            return client.replyMessage(event.replyToken, { type: "text", text: replyMsg });
+          } else {
+            return client.replyMessage(event.replyToken, { type: "text", text: "❌ ไม่พบข้อมูลในระบบหลัก" });
+          }
+        } catch (apiError) {
+          console.error("API UAT Error:", apiError);
+          // ถ้า Timeout หรือโดนบล็อก จะตกมาที่นี่
+          if (apiError.name === 'AbortError' || apiError.code === 'UND_ERR_CONNECT_TIMEOUT') {
+            return client.replyMessage(event.replyToken, { type: "text", text: "⚠️ ไม่สามารถเชื่อมต่อกับฐานข้อมูลระบบหลักได้ในขณะนี้ (Timeout/Firewall)\nกรุณาติดต่อผู้ดูแลระบบครับ" });
+          }
+          return client.replyMessage(event.replyToken, { type: "text", text: "❌ เกิดข้อผิดพลาดขัดข้องในการดึงข้อมูลจากระบบหลัก" });
         }
       }
     }));
 
     return res.status(200).json(results);
   } catch (error) {
-    console.error("Webhook Error:", error);
+    console.error("Webhook Global Error:", error);
     return res.status(200).json({ status: "error" });
   }
 };
