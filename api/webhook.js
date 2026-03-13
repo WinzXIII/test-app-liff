@@ -70,7 +70,7 @@ module.exports = async function handler(req, res) {
           console.error("API UAT Error:", apiError);
           // ถ้า Timeout หรือโดนบล็อก จะตกมาที่นี่
           if (apiError.name === 'AbortError' || apiError.code === 'UND_ERR_CONNECT_TIMEOUT') {
-            return client.replyMessage(event.replyToken, { type: "text", text: "⚠️ ไม่สามารถเชื่อมต่อกับฐานข้อมูลระบบหลักได้ในขณะนี้ (Timeout/Firewall)\nกรุณาติดต่อผู้ดูแลระบบครับ" + apiResp.status ? `\nStatus: ${apiResp.status}` : '' + apiResp.statusText ? `\nStatus Text: ${apiResp.statusText}` : '' });
+            return client.replyMessage(event.replyToken, { type: "text", text: "⚠️ ไม่สามารถเชื่อมต่อกับฐานข้อมูลระบบหลักได้ในขณะนี้ (Timeout/Firewall)\nกรุณาติดต่อผู้ดูแลระบบครับ" + apiError.message });
           }
           return client.replyMessage(event.replyToken, { type: "text", text: "❌ เกิดข้อผิดพลาดขัดข้องในการดึงข้อมูลจากระบบหลัก" });
         }
