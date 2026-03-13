@@ -175,7 +175,7 @@
           const errorText = await resp.text();
           throw new Error(`Server ตอบกลับด้วย Error ${resp.status}: ${errorText}`);
         }
-        
+
         const resJson = await resp.json();
         console.log("บันทึกสำเร็จ:", resJson);
         // alert("เชื่อมต่อข้อมูลกับ LINE สำเร็จแล้ว!"); // ปิดไว้ก่อนถ้ามั่นใจ
@@ -208,6 +208,30 @@
       alert('ล้างข้อมูลเรียบร้อยแล้ว');
     }
 
+    async function linkMemberToLineUser(customerId, memberId) {
+      try {
+        if (!liff.isLoggedIn()) return;
+        const profile = await liff.getProfile();
+        const userId = profile.userId;
+
+        // ✅ ใช้ Path สั้น เพื่อให้ยิงเข้าโดเมนปัจจุบันที่รันอยู่ (Vercel จะจัดการให้เอง)
+        const resp = await fetch("/api/link-member", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, customerId, memberId }),
+        });
+
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error("Redis Link Failed: " + t);
+        }
+        console.log("Linked Successfully");
+      } catch (err) {
+        console.error("Link Error:", err);
+        alert("ไม่สามารถผูกข้อมูลกับ LINE ได้ แต่ยังสามารถส่งข้อความเข้าแชทได้ปกติ: " + err.message);
+      }
+    }
+
     // ฟังก์ชันค้นหาข้อมูลจาก API และบันทึกข้อมูล
     async function fetchData() {
       const customerId = document.getElementById('customerId').value.trim();
@@ -231,39 +255,31 @@
         const result = await response.json();
 
         if (result.respCode === "200" && result.data) {
-          // ✅ อัปเดตข้อมูลปัจจุบันให้เป็นตัวล่าสุดจาก API ทันที
           currentMemberData = JSON.parse(JSON.stringify(result.data));
-
           localStorage.setItem('saved_customerId', customerId);
           localStorage.setItem('saved_memberId', memberId);
 
-          // ✅ รอจนกว่าจะบันทึกลง Redis สำเร็จ
+          // ✅ ยิงไปผูกข้อมูลใน Redis
           await linkMemberToLineUser(customerId, memberId);
 
-          let html = `
-            <p><strong>ชื่อ-นามสกุล:</strong> ${currentMemberData.Name}</p>
-            <p><strong>สถานะ:</strong> <span style="color:green;">${currentMemberData.Status}</span></p>
-            <p><strong>ประเภทการลงทะเบียน:</strong> ${currentMemberData.RegisType}</p>
-            <p><strong>ประเภทสมาชิก:</strong> ${currentMemberData.MemberType}</p>
-            <hr>
-            <p><strong>การชำระเงิน:</strong> ${currentMemberData.PaymentInfo.PayType}</p>
-            <p><strong>ช่องทาง:</strong> ${currentMemberData.PaymentInfo.PayForm}</p>
-          `;
-
-          document.getElementById('api-data').innerHTML = html;
-          document.getElementById('result-box').style.display = 'block';
-          document.getElementById('sendBtn').style.display = 'block';
-          document.getElementById('clearBtn').style.display = 'block';
-
-          alert("ผูกข้อมูลสำเร็จ! ตอนนี้คุณสามารถพิมพ์ A ในแชทเพื่อดึงข้อมูลได้แล้ว");
-        } else {
-          alert("ไม่พบข้อมูลสมาชิกนี้");
+          // ✅ แสดงผลหน้าจอ
+          updateUI(currentMemberData);
+          alert("ผูกข้อมูลสำเร็จ! ตอนนี้สามารถพิมพ์ A ในแชทได้แล้ว");
         }
-      } catch (error) {
-        alert("Error: " + error.message);
+      } catch (err) {
+        console.error("Fetch Error:", err);
+        alert("เกิดข้อผิดพลาดในการค้นหาข้อมูล: " + err.message);
       } finally {
         document.getElementById('loading').style.display = 'none';
       }
+    }
+
+    function updateUI(data) {
+      let html = `<p><strong>ชื่อ-นามสกุล:</strong> ${data.Name}</p>...`; // ก๊อปปี้ HTML เดิมของคุณมาใส่ตรงนี้
+      document.getElementById('api-data').innerHTML = html;
+      document.getElementById('result-box').style.display = 'block';
+      document.getElementById('sendBtn').style.display = 'block';
+      document.getElementById('clearBtn').style.display = 'block';
     }
 
     // ฟังก์ชันส่งข้อความแชท
