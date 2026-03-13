@@ -211,7 +211,6 @@
 
       document.getElementById('loading').style.display = 'block';
       document.getElementById('result-box').style.display = 'none';
-      document.getElementById('sendBtn').style.display = 'none';
 
       try {
         const apiUrl = `https://uat-chapanakij.thaijobjob.com/api/uat/chatme/member/${customerId}/${memberId}`;
@@ -223,41 +222,36 @@
         const result = await response.json();
 
         if (result.respCode === "200" && result.data) {
-          const data = result.data;
-          currentMemberData = data;
+          // ✅ อัปเดตข้อมูลปัจจุบันให้เป็นตัวล่าสุดจาก API ทันที
+          currentMemberData = JSON.parse(JSON.stringify(result.data));
 
-          // 1. บันทึกลงเครื่อง (Local Storage)
           localStorage.setItem('saved_customerId', customerId);
           localStorage.setItem('saved_memberId', memberId);
-          document.getElementById('clearBtn').style.display = 'block';
 
-          // 2. ส่งไปผูกกับ LINE ID (Redis)
+          // ✅ รอจนกว่าจะบันทึกลง Redis สำเร็จ
           await linkMemberToLineUser(customerId, memberId);
-          
-          // 3. แสดงผลหน้าจอ
+
           let html = `
-            <p><strong>ชื่อ-นามสกุล:</strong> ${data.Name}</p>
-            <p><strong>สถานะ:</strong> <span style="color:green;">${data.Status}</span></p>
-            <p><strong>ประเภทการลงทะเบียน:</strong> ${data.RegisType}</p>
-            <p><strong>ประเภทสมาชิก:</strong> ${data.MemberType}</p>
+            <p><strong>ชื่อ-นามสกุล:</strong> ${currentMemberData.Name}</p>
+            <p><strong>สถานะ:</strong> <span style="color:green;">${currentMemberData.Status}</span></p>
+            <p><strong>ประเภทการลงทะเบียน:</strong> ${currentMemberData.RegisType}</p>
+            <p><strong>ประเภทสมาชิก:</strong> ${currentMemberData.MemberType}</p>
             <hr>
-            <p><strong>การชำระเงิน:</strong> ${data.PaymentInfo.PayType}</p>
-            <p><strong>ช่องทาง:</strong> ${data.PaymentInfo.PayForm}</p>
+            <p><strong>การชำระเงิน:</strong> ${currentMemberData.PaymentInfo.PayType}</p>
+            <p><strong>ช่องทาง:</strong> ${currentMemberData.PaymentInfo.PayForm}</p>
           `;
 
           document.getElementById('api-data').innerHTML = html;
           document.getElementById('result-box').style.display = 'block';
           document.getElementById('sendBtn').style.display = 'block';
-          
-          alert("ตรวจสอบและผูกข้อมูลสำเร็จ!");
+          document.getElementById('clearBtn').style.display = 'block';
+
+          alert("ผูกข้อมูลสำเร็จ! ตอนนี้คุณสามารถพิมพ์ A ในแชทเพื่อดึงข้อมูลได้แล้ว");
         } else {
-          document.getElementById('api-data').innerHTML = `<p style="color:red;">ไม่พบข้อมูล (${result.respMsg})</p>`;
-          document.getElementById('result-box').style.display = 'block';
+          alert("ไม่พบข้อมูลสมาชิกนี้");
         }
       } catch (error) {
-        console.error(error);
-        document.getElementById('api-data').innerHTML = `<p style="color:red;">ไ���่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: ${error.message}</p>`;
-        document.getElementById('result-box').style.display = 'block';
+        alert("Error: " + error.message);
       } finally {
         document.getElementById('loading').style.display = 'none';
       }
@@ -265,18 +259,22 @@
 
     // ฟังก์ชันส่งข้อความแชท
     function sendToChat() {
-      if (!currentMemberData) return;
-      const textMessage =
-        `[ข้อมูลสมาชิก]\nชื่อ: ${currentMemberData.Name}\nสถานะ: ${currentMemberData.Status}\nประเภท: ${currentMemberData.RegisType}\nการชำระเงิน: ${currentMemberData.PaymentInfo.PayForm}`;
+      if (!currentMemberData) {
+        alert("ไม่พบข้อมูลที่จะส่ง");
+        return;
+      }
 
-      liff.sendMessages([
-        { type: 'text', text: textMessage }
-      ]).then(() => {
-        alert('ส่งข้อมูลเข้าห้องแชทสำเร็จ!');
-        liff.closeWindow();
-      }).catch((err) => {
-        alert('เกิดข้อผิดพลาด: ' + err.message);
-      });
+      // ✅ สร้างข้อความโดยดึงจาก currentMemberData ที่เราเพิ่งอัปเดตไป
+      const textMessage =
+        `[ข้อมูลสมาชิก]
+        ชื่อ: ${currentMemberData.Name}
+        สถานะ: ${currentMemberData.Status}
+        ประเภท: ${currentMemberData.RegisType}
+        การชำระเงิน: ${currentMemberData.PaymentInfo.PayForm}`;
+
+      liff.sendMessages([{ type: 'text', text: textMessage }])
+        .then(() => liff.closeWindow())
+        .catch((err) => alert('Error: ' + err.message));
     }
 
     window.onload = main;
