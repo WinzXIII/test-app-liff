@@ -8,8 +8,9 @@ const config = {
 
 const client = new line.Client(config);
 
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+// บังคับให้ใช้ KV_REST_API_URL และ KV_REST_API_TOKEN เท่านั้น
+const redisUrl = process.env.KV_REST_API_URL;
+const redisToken = process.env.KV_REST_API_TOKEN;
 
 module.exports = async function handler(req, res) {
   if (req.method === "GET") return res.status(200).send("OK");
@@ -26,12 +27,16 @@ module.exports = async function handler(req, res) {
       const userId = event.source.userId;
 
       if (userMessage === "A") {
+        if (!redisUrl || !redisToken) {
+           console.error("Webhook missing Redis config");
+           return client.replyMessage(event.replyToken, { type: "text", text: "ระบบกำลังปรับปรุง (Missing Redis Config)" });
+        }
+
         const redis = new Redis({ url: redisUrl, token: redisToken });
         const key = `memberlink:${userId}`;
         
         let linkData = await redis.get(key);
         
-        // จัดการข้อมูลจาก Redis (เผื่อเป็น String หรือ Object)
         if (typeof linkData === 'string') {
           try { linkData = JSON.parse(linkData); } catch(e) {}
         }

@@ -4,11 +4,12 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ message: "Method Not Allowed" });
 
   try {
-    // ดึงค่าจาก ENV (รองรับทั้งชื่อ UPSTASH และ KV)
-    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+    // บังคับให้ใช้ KV_REST_API_URL และ KV_REST_API_TOKEN เท่านั้น
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
 
     if (!url || !token) {
+      console.error("Missing Redis Config in link-member.js");
       return res.status(500).json({ ok: false, message: "Missing Redis Config" });
     }
 
@@ -20,10 +21,8 @@ module.exports = async function handler(req, res) {
     }
 
     const key = `memberlink:${userId}`;
-    // บันทึกข้อมูลแบบ Object
     await redis.set(key, JSON.stringify({ customerId, memberId }));
 
-    console.log(`Success: Linked ${userId} to ${customerId}`);
     return res.status(200).json({ ok: true, message: "Linked successfully" });
   } catch (err) {
     console.error("Link-member Error:", err.message);
