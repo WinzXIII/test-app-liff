@@ -8,101 +8,20 @@
   <!-- นำเข้า LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-      text-align: center;
-      background-color: #f5f5f5;
-    }
-
-    .container {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
-      margin: 0 auto;
-    }
-
-    .input-group {
-      margin-bottom: 15px;
-      text-align: left;
-    }
-
-    .input-group label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      font-size: 14px;
-    }
-
-    .input-group input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      box-sizing: border-box;
-      font-size: 16px;
-    }
-
-    button {
-      padding: 12px 20px;
-      font-size: 16px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      width: 100%;
-      font-weight: bold;
-    }
-
-    button:hover {
-      background: #0056b3;
-    }
-
-    .btn-green {
-      background: #06C755;
-      margin-top: 10px;
-    }
-
-    .btn-green:hover {
-      background: #05b34c;
-    }
-
-    .btn-red {
-      background: #ff3b30;
-      margin-top: 10px;
-      font-size: 14px;
-      padding: 8px 15px;
-    }
-
-    .btn-red:hover {
-      background: #cc2e26;
-    }
-
-    #profile-section {
-      margin-bottom: 20px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 10px;
-    }
-
-    #result-box {
-      margin-top: 20px;
-      padding: 15px;
-      background: #f9f9f9;
-      border-radius: 5px;
-      text-align: left;
-      display: none;
-      border: 1px solid #ddd;
-    }
-
-    #loading {
-      color: #ff9800;
-      font-weight: bold;
-      display: none;
-      margin-top: 10px;
-    }
+    body { font-family: sans-serif; padding: 20px; text-align: center; background-color: #f5f5f5; }
+    .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); max-width: 400px; margin: 0 auto; }
+    .input-group { margin-bottom: 15px; text-align: left; }
+    .input-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+    .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+    button { padding: 12px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+    button:hover { background: #0056b3; }
+    .btn-green { background: #06C755; margin-top: 10px; }
+    .btn-green:hover { background: #05b34c; }
+    .btn-red { background: #ff3b30; margin-top: 10px; font-size: 14px; padding: 8px 15px; }
+    .btn-red:hover { background: #cc2e26; }
+    #profile-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    #result-box { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; text-align: left; display: none; border: 1px solid #ddd; }
+    #loading { color: #ff9800; font-weight: bold; display: none; margin-top: 10px; }
   </style>
 </head>
 
@@ -137,7 +56,6 @@
     const LIFF_ID = "2009412063-oVeJr2wq";
     let currentMemberData = null;
 
-    // เริ่มต้นระบบ LIFF
     async function main() {
       try {
         await liff.init({ liffId: LIFF_ID });
@@ -153,40 +71,6 @@
       }
     }
 
-    // ฟังก์ชันผูกข้อมูลสมาชิกกับ LINE User ID ใน Redis
-    async function linkMemberToLineUser(customerId, memberId) {
-      try {
-        if (!liff.isLoggedIn()) {
-          alert("กรุณาล็อกอิน LINE ก่อน");
-          return;
-        }
-
-        const profile = await liff.getProfile();
-        const userId = profile.userId;
-
-        // ✅ แก้ไข: ใส่ URL เต็มๆ ของ Vercel เพื่อความชัวร์ (หรือใช้ /api/link-member ก็ได้ถ้าอยู่ในโดเมนเดียวกัน)
-        const resp = await fetch("https://test-app-liff.vercel.app/api/link-member", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, customerId, memberId }),
-        });
-
-        if (!resp.ok) {
-          const errorText = await resp.text();
-          throw new Error(`Server ตอบกลับด้วย Error ${resp.status}: ${errorText}`);
-        }
-
-        const resJson = await resp.json();
-        console.log("บันทึกสำเร็จ:", resJson);
-        // alert("เชื่อมต่อข้อมูลกับ LINE สำเร็จแล้ว!"); // ปิดไว้ก่อนถ้ามั่นใจ
-      } catch (err) {
-        console.error("Link Error:", err);
-        // 🚨 ตัวนี้จะบอกเราว่าทำไมบันทึกไม่ได้ (เช่น 404, 500 หรือ Failed to fetch)
-        alert("🚨 เกิดข้อผิดพลาดตอนบันทึกข้อมูลไปที่ LINE: " + err.message);
-      }
-    }
-
-    // ฟังก์ชันดึงข้อมูลจาก Local Storage
     function loadSavedData() {
       const savedCid = localStorage.getItem('saved_customerId');
       const savedMid = localStorage.getItem('saved_memberId');
@@ -197,7 +81,6 @@
       }
     }
 
-    // ฟังก์ชันลบข้อมูลที่จำไว้
     function clearSavedData() {
       localStorage.removeItem('saved_customerId');
       localStorage.removeItem('saved_memberId');
@@ -214,7 +97,6 @@
         const profile = await liff.getProfile();
         const userId = profile.userId;
 
-        // ✅ ใช้ Path สั้น เพื่อให้ยิงเข้าโดเมนปัจจุบันที่รันอยู่ (Vercel จะจัดการให้เอง)
         const resp = await fetch("/api/link-member", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -228,11 +110,10 @@
         console.log("Linked Successfully");
       } catch (err) {
         console.error("Link Error:", err);
-        alert("ไม่สามารถผูกข้อมูลกับ LINE ได้ แต่ยังสามารถส่งข้อความเข้าแชทได้ปกติ: " + err.message);
+        alert("บันทึกข้���มูลผูกบัญชีไม่สำเร็จ: " + err.message);
       }
     }
 
-    // ฟังก์ชันค้นหาข้อมูลจาก API และบันทึกข้อมูล
     async function fetchData() {
       const customerId = document.getElementById('customerId').value.trim();
       const memberId = document.getElementById('memberId').value.trim();
@@ -259,12 +140,14 @@
           localStorage.setItem('saved_customerId', customerId);
           localStorage.setItem('saved_memberId', memberId);
 
-          // ✅ ยิงไปผูกข้อมูลใน Redis
+          // ส่งข้อมูลไปผูกกับ Redis
           await linkMemberToLineUser(customerId, memberId);
 
-          // ✅ แสดงผลหน้าจอ
+          // แสดงผลหน้าจอ
           updateUI(currentMemberData);
           alert("ผูกข้อมูลสำเร็จ! ตอนนี้สามารถพิมพ์ A ในแชทได้แล้ว");
+        } else {
+          alert("ไม่พบข้อมูลสมาชิก: " + (result.respMsg || ""));
         }
       } catch (err) {
         console.error("Fetch Error:", err);
@@ -275,27 +158,33 @@
     }
 
     function updateUI(data) {
-      let html = `<p><strong>ชื่อ-นามสกุล:</strong> ${data.Name}</p>...`; // ก๊อปปี้ HTML เดิมของคุณมาใส่ตรงนี้
+      let html = `
+        <p><strong>ชื่อ-นามสกุล:</strong> ${data.Name}</p>
+        <p><strong>สถานะ:</strong> <span style="color:green;">${data.Status}</span></p>
+        <p><strong>ประเภทการลงทะเบียน:</strong> ${data.RegisType}</p>
+        <p><strong>ประเภทสมาชิก:</strong> ${data.MemberType}</p>
+        <hr>
+        <p><strong>การชำระเงิน:</strong> ${data.PaymentInfo.PayType}</p>
+        <p><strong>ช่องทาง:</strong> ${data.PaymentInfo.PayForm}</p>
+      `;
       document.getElementById('api-data').innerHTML = html;
       document.getElementById('result-box').style.display = 'block';
       document.getElementById('sendBtn').style.display = 'block';
       document.getElementById('clearBtn').style.display = 'block';
     }
 
-    // ฟังก์ชันส่งข้อความแชท
     function sendToChat() {
       if (!currentMemberData) {
         alert("ไม่พบข้อมูลที่จะส่ง");
         return;
       }
 
-      // ✅ สร้างข้อความโดยดึงจาก currentMemberData ที่เราเพิ่งอัปเดตไป
-      const textMessage =
-        `[ข้อมูลสมาชิก]
-        ชื่อ: ${currentMemberData.Name}
-        สถานะ: ${currentMemberData.Status}
-        ประเภท: ${currentMemberData.RegisType}
-        การชำระเงิน: ${currentMemberData.PaymentInfo.PayForm}`;
+      const textMessage = 
+`[ข้อมูลสมาชิก]
+👤 ชื่อ: ${currentMemberData.Name}
+📌 สถานะ: ${currentMemberData.Status}
+📝 ประเภท: ${currentMemberData.RegisType}
+💳 การชำระเงิน: ${currentMemberData.PaymentInfo.PayForm || '-'}`;
 
       liff.sendMessages([{ type: 'text', text: textMessage }])
         .then(() => liff.closeWindow())
