@@ -1,11 +1,11 @@
-import { Redis } from "@upstash/redis";
+const { Redis } = require("@upstash/redis");
 
 function getEnv(name) {
   const v = process.env[name];
   return v && String(v).trim() ? v : null;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ message: "Method Not Allowed" });
 
   try {
@@ -26,4 +26,4 @@ export default async function handler(req, res) {
     console.error("link-member error:", err);
     return res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};

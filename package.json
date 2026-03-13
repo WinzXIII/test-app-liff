@@ -2,7 +2,6 @@
   "name": "test-app-liff",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "dependencies": {
     "@line/bot-sdk": "^10.0.0",
     "@upstash/redis": "^1.34.0"
