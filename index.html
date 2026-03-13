@@ -1,33 +1,127 @@
 <!-- index.html -->
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบตรวจสอบสมาชิก</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    async function linkMemberToLineUser(customerId, memberId) {
+      const profile = await liff.getProfile();
+      const userId = profile.userId;
+
+      const resp = await fetch("/api/link-member", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, customerId, memberId }),
+      });
+
+      if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error("link-member failed: " + t);
+      }
+    }
+  </script>
   <style>
-    body { font-family: sans-serif; padding: 20px; text-align: center; background-color: #f5f5f5; }
-    .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-    
-    .input-group { margin-bottom: 15px; text-align: left; }
-    .input-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
-    .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-    
-    button { padding: 12px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
-    button:hover { background: #0056b3; }
-    
-    .btn-green { background: #06C755; margin-top: 10px; }
-    .btn-green:hover { background: #05b34c; }
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      text-align: center;
+      background-color: #f5f5f5;
+    }
 
-    .btn-red { background: #ff3b30; margin-top: 10px; font-size: 14px; padding: 8px 15px; }
-    .btn-red:hover { background: #cc2e26; }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      margin: 0 auto;
+    }
 
-    #profile-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-    #result-box { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; text-align: left; display: none; border: 1px solid #ddd; }
-    #loading { color: #ff9800; font-weight: bold; display: none; margin-top: 10px; }
+    .input-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    .btn-green {
+      background: #06C755;
+      margin-top: 10px;
+    }
+
+    .btn-green:hover {
+      background: #05b34c;
+    }
+
+    .btn-red {
+      background: #ff3b30;
+      margin-top: 10px;
+      font-size: 14px;
+      padding: 8px 15px;
+    }
+
+    .btn-red:hover {
+      background: #cc2e26;
+    }
+
+    #profile-section {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+
+    #result-box {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 5px;
+      text-align: left;
+      display: none;
+      border: 1px solid #ddd;
+    }
+
+    #loading {
+      color: #ff9800;
+      font-weight: bold;
+      display: none;
+      margin-top: 10px;
+    }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div id="profile-section">
@@ -43,10 +137,10 @@
       <label>รหัสสมาชิก (Member ID):</label>
       <input type="text" id="memberId" placeholder="เช่น 034658">
     </div>
-    
+
     <button onclick="fetchData()">ค้นหาข้อมูล</button>
     <button class="btn-red" onclick="clearSavedData()" id="clearBtn" style="display:none;">ล้างข้อมูลที่จำไว้</button>
-    
+
     <p id="loading">กำลังค้นหาข้อมูล...</p>
 
     <div id="result-box">
@@ -56,15 +150,15 @@
   </div>
 
   <script>
-    const LIFF_ID = "2009412063-oVeJr2wq"; 
-    let currentMemberData = null; 
+    const LIFF_ID = "2009412063-oVeJr2wq";
+    let currentMemberData = null;
 
     async function main() {
       await liff.init({ liffId: LIFF_ID });
       if (liff.isLoggedIn()) {
         const profile = await liff.getProfile();
         document.getElementById('profile-name').innerText = "สวัสดีคุณ " + profile.displayName;
-        
+
         // 1. เช็คว่ามีข้อมูลที่เคยเซฟไว้ในเครื่องหรือไม่
         loadSavedData();
       } else {
@@ -76,7 +170,7 @@
     function loadSavedData() {
       const savedCid = localStorage.getItem('saved_customerId');
       const savedMid = localStorage.getItem('saved_memberId');
-      
+
       if (savedCid && savedMid) {
         document.getElementById('customerId').value = savedCid;
         document.getElementById('memberId').value = savedMid;
@@ -98,7 +192,7 @@
     async function fetchData() {
       const customerId = document.getElementById('customerId').value.trim();
       const memberId = document.getElementById('memberId').value.trim();
-      
+
       if (!customerId || !memberId) {
         alert("กรุณากรอกข้อมูลให้ครบทั้ง 2 ช่อง");
         return;
@@ -119,8 +213,9 @@
 
         if (result.respCode === "200" && result.data) {
           const data = result.data;
-          currentMemberData = data; 
-
+          currentMemberData = data;
+          await linkMemberToLineUser(customerId, memberId);
+          
           // 2. เมื่อดึงข้อมูลสำเร็จ ให้บันทึกข้อมูลลง Local Storage
           localStorage.setItem('saved_customerId', customerId);
           localStorage.setItem('saved_memberId', memberId);
@@ -135,10 +230,10 @@
             <p><strong>การชำระเงิน:</strong> ${data.PaymentInfo.PayType}</p>
             <p><strong>ช่องทาง:</strong> ${data.PaymentInfo.PayForm}</p>
           `;
-          
+
           document.getElementById('api-data').innerHTML = html;
           document.getElementById('result-box').style.display = 'block';
-          document.getElementById('sendBtn').style.display = 'block'; 
+          document.getElementById('sendBtn').style.display = 'block';
         } else {
           document.getElementById('api-data').innerHTML = `<p style="color:red;">ไม่พบข้อมูล หรือเกิดข้อผิดพลาด (${result.respMsg})</p>`;
           document.getElementById('result-box').style.display = 'block';
@@ -154,8 +249,8 @@
 
     function sendToChat() {
       if (!currentMemberData) return;
-      const textMessage = 
-`[ข้อมูลสมาชิก]
+      const textMessage =
+        `[ข้อมูลสมาชิก]
 ชื่อ: ${currentMemberData.Name}
 สถานะ: ${currentMemberData.Status}
 ประเภท: ${currentMemberData.RegisType}
@@ -165,7 +260,7 @@
         { type: 'text', text: textMessage }
       ]).then(() => {
         alert('ส่งข้อมูลเข้าห้องแชทสำเร็จ!');
-        liff.closeWindow(); 
+        liff.closeWindow();
       }).catch((err) => {
         alert('เกิดข้อผิดพลาดในการส่งข้อความ: ' + err.message);
       });
@@ -174,4 +269,5 @@
     window.onload = main;
   </script>
 </body>
+
 </html>
