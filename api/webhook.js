@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
             signal: controller.signal
           });
           clearTimeout(timeoutId);
-
+          console.log(apiResp.status, await apiResp.text()); // Log response status and body for debugging
           const result = await apiResp.json();
 
           if (result.respCode === "200" && result.data) {
