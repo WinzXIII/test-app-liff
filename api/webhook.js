@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
       }
 
       // 🛡️ 2. รับเฉพาะข้อความตัวอักษร
-      if (event.type !== 'message' || event.message.type !== 'text') {
+      if (event.type !== 'message' || event.message.type !== 'number' && event.message.type !== 'text') {
         return null;
       }
 
@@ -44,6 +44,8 @@ module.exports = async function handler(req, res) {
       if (userMessage === "A") {
         const redis = new Redis({ url: redisUrl, token: redisToken });
         const key = `memberlink:${userId}`;
+
+        alert("Debug: Checking Redis for key " + key); // เพิ่ม Alert เพื่อ Debug
         
         // ดึงข้อมูลการผูกบัญชีจาก Redis
         let linkData = await redis.get(key);
@@ -98,10 +100,10 @@ module.exports = async function handler(req, res) {
 
       // 🎯 4. กรณีพิมพ์คำสั่งอื่น (B, C, D...) หรือพิมพ์ทั่วไป
       // (คุณสามารถเพิ่มเงื่อนไข else if (userMessage === "B") ได้ที่นี่)
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: `คุณพิมพ์ว่า: ${event.message.text}\n\n(พิมพ์ A เพื่อตรวจสอบข้อมูลสมาชิก)`
-      });
+      // return client.replyMessage(event.replyToken, {
+      //   type: "text",
+      //   text: `คุณพิมพ์ว่า: ${event.message.text}\n\n(พิมพ์ A เพื่อตรวจสอบข้อมูลสมาชิก)`
+      // });
 
     }));
 
@@ -109,7 +111,7 @@ module.exports = async function handler(req, res) {
     
   } catch (error) {
     console.error("Webhook Error:", error);
-    // ตอบ 200 ไว้เพื่อให้ LINE ไม่ฟ้อง Error (แต่เ��าไปดู Error ใน Vercel Logs แทน)
+    // ตอบ 200 ไว้เพื่อให้ LINE ไม่ฟ้อง Error (แต่เอาไปดู Error ใน Vercel Logs แทน)
     return res.status(200).json({ status: "error", message: error.message });
   }
 };
