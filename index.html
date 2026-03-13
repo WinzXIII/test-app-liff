@@ -165,7 +165,7 @@
         const userId = profile.userId;
 
         // ✅ แก้ไข: ใส่ URL เต็มๆ ของ Vercel เพื่อความชัวร์ (หรือใช้ /api/link-member ก็ได้ถ้าอยู่ในโดเมนเดียวกัน)
-        const resp = await fetch("/api/link-member", {
+        const resp = await fetch("https://test-app-liff.vercel.app/api/link-member", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId, customerId, memberId }),
@@ -178,7 +178,7 @@
         
         const resJson = await resp.json();
         console.log("บันทึกสำเร็จ:", resJson);
-        // alert("เชื่อมต่อข้อมูลกับ LINE สำเร็จแ���้ว!"); // ปิดไว้ก่อนถ้ามั่นใจ
+        // alert("เชื่อมต่อข้อมูลกับ LINE สำเร็จแล้ว!"); // ปิดไว้ก่อนถ้ามั่นใจ
       } catch (err) {
         console.error("Link Error:", err);
         // 🚨 ตัวนี้จะบอกเราว่าทำไมบันทึกไม่ได้ (เช่น 404, 500 หรือ Failed to fetch)
