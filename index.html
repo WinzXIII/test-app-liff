@@ -156,10 +156,15 @@
     // ฟังก์ชันผูกข้อมูลสมาชิกกับ LINE User ID ใน Redis
     async function linkMemberToLineUser(customerId, memberId) {
       try {
-        if (!liff.isLoggedIn()) return;
+        if (!liff.isLoggedIn()) {
+          alert("กรุณาล็อกอิน LINE ก่อน");
+          return;
+        }
+
         const profile = await liff.getProfile();
         const userId = profile.userId;
 
+        // ✅ แก้ไข: ใส่ URL เต็มๆ ของ Vercel เพื่อความชัวร์ (หรือใช้ /api/link-member ก็ได้ถ้าอยู่ในโดเมนเดียวกัน)
         const resp = await fetch("/api/link-member", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -167,13 +172,17 @@
         });
 
         if (!resp.ok) {
-          const t = await resp.text();
-          throw new Error("บันทึกลง Redis ล้มเหลว: " + t);
+          const errorText = await resp.text();
+          throw new Error(`Server ตอบกลับด้วย Error ${resp.status}: ${errorText}`);
         }
-        console.log("Link success");
+        
+        const resJson = await resp.json();
+        console.log("บันทึกสำเร็จ:", resJson);
+        // alert("เชื่อมต่อข้อมูลกับ LINE สำเร็จแ���้ว!"); // ปิดไว้ก่อนถ้ามั่นใจ
       } catch (err) {
-        console.error("Link Error", err);
-        alert("ไม่สามารถผูกข้อมูลกับ LINE ได้: " + err.message);
+        console.error("Link Error:", err);
+        // 🚨 ตัวนี้จะบอกเราว่าทำไมบันทึกไม่ได้ (เช่น 404, 500 หรือ Failed to fetch)
+        alert("🚨 เกิดข้อผิดพลาดตอนบันทึกข้อมูลไปที่ LINE: " + err.message);
       }
     }
 
