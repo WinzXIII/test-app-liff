@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เชื่อมต่อบัญชีสมาชิก</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+        
+        <!-- Header สีสัน -->
+        <div class="h-20 bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
+            <h1 class="text-xl font-bold text-white">ระบบเชื่อมต่อบัญชีสมาชิก</h1>
+        </div>
+
+        <div class="p-6">
+            <!-- 1. หน้าจอ Loading (ตอนเปิด LIFF) -->
+            <div id="loadingState" class="text-center py-8">
+                <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-500 mt-4 font-medium">กำลังตรวจสอบข้อมูล LINE...</p>
+            </div>
+
+            <!-- 2. หน้าจอหลัก (แสดงโปรไฟล์ + ฟอร์ม) -->
+            <div id="mainState" class="hidden">
+                
+                <!-- ข้อมูล LINE -->
+                <div class="flex items-center space-x-4 bg-gray-50 p-4 rounded-xl mb-6 border border-gray-100">
+                    <img id="profileImage" src="" alt="Profile" class="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover">
+                    <div>
+                        <p class="text-sm text-gray-500">เข้าสู่ระบบด้วย LINE</p>
+                        <h2 id="displayName" class="text-lg font-bold text-gray-800"></h2>
+                    </div>
+                </div>
+
+                <!-- กล่องข้อความแจ้งเตือน (Alert) -->
+                <div id="alertBox" class="hidden mb-4 p-4 rounded-lg text-sm font-medium"></div>
+
+                <!-- ฟอร์มกรอกข้อมูล -->
+                <div id="linkForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">เลขบัตรประชาชน (Customer ID)</label>
+                        <input type="text" id="customerId" placeholder="เช่น 1234567890123" 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">รหัสสมาชิก (Member ID)</label>
+                        <input type="text" id="memberId" placeholder="เช่น 034658" 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                    </div>
+
+                    <button id="submitBtn" onclick="linkAccount()" 
+                        class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-200 flex justify-center items-center">
+                        <span id="btnText">เชื่อมต่อบัญชี</span>
+                        <svg id="btnSpinner" class="hidden animate-spin ml-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- ปุ่มปิดหน้าต่าง (แสดงเมื่อทำรายการสำเร็จ) -->
+                <button id="closeBtn" onclick="liff.closeWindow()" 
+                    class="hidden w-full mt-6 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-200">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------------------------------------------------------
+        // ⚙️ ตั้งค่าระบบ (CONFIG)
+        // ---------------------------------------------------------
+        const LIFF_ID = "2009443112-56ScfBJ6";
+        
+        // 🔴 เปลี่ยน URL นี้เป็น URL จริงของ API หลังบ้านคุณ
+        const API_URL = "https://uat-chapanakij.thaijobjob.com/api/uat/chatme/linkAccount"; 
+
+        // 🔴 ใส่ API KEY ของคุณ
+        const API_KEY = "C14PXXx6uHUYJrPey8Y2pHiHjZhjRGGRRq9bpPnwU74YbRSoYUlY2Y4xN3LlghRh";
+
+        let globalLineUserId = "";
+
+        // ---------------------------------------------------------
+        // 🚀 เริ่มต้น LIFF
+        // ---------------------------------------------------------
+        async function initLiff() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+                const profile = await liff.getProfile();
+                
+                // เก็บ lineUserId ไว้ใช้ตอนส่ง API
+                globalLineUserId = profile.userId;
+
+                // แสดงข้อมูลบนหน้าจอ
+                document.getElementById('profileImage').src = profile.pictureUrl || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                document.getElementById('displayName').textContent = profile.displayName;
+
+                // เปลี่ยนหน้าจอจาก Loading เป็นฟอร์ม
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('mainState').classList.remove('hidden');
+
+            } catch (error) {
+                showAlert("เกิดข้อผิดพลาดในการโหลด LINE: " + error.message, "error");
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 📡 ฟังก์ชันเชื่อมต่อบัญชี (เรียก API)
+        // ---------------------------------------------------------
+        async function linkAccount() {
+            const customerId = document.getElementById('customerId').value.trim();
+            const memberId = document.getElementById('memberId').value.trim();
+
+            if (!customerId || !memberId) {
+                showAlert("กรุณากรอกเลขบัตรประชาชนและรหัสสมาชิกให้ครบถ้วน", "error");
+                return;
+            }
+
+            // แสดงสถานะ Loading ที่ปุ่ม
+            setButtonLoading(true);
+            showAlert("", "hide");
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-api-key": API_KEY // ส่ง header ตามสเปค
+                    },
+                    body: JSON.stringify({
+                        lineUserId: globalLineUserId,
+                        customerId: customerId,
+                        memberId: memberId
+                    })
+                });
+
+                const result = await response.json();
+
+                // จัดการ Response ตาม respCode ที่หลังบ้านพ่นมา
+                if (result.respCode === "200") {
+                    // สำเร็จ (ผูกใหม่ หรือ อัปเดตอันเก่า)
+                    showAlert(`✅ สำเร็จ! ${result.respMsg}`, "success");
+                    showSuccessState();
+                } 
+                else if (result.respCode === "404") {
+                    // หา user/member ไม่เจอ (รหัสผิด)
+                    showAlert(`❌ ข้อมูลไม่ถูกต้อง: ${result.respMsg}`, "error");
+                } 
+                else if (result.respCode === "409") {
+                    // ผูกไปแล้ว หรือ ไลน์นี้ไปผูกกับคนอื่นแล้ว
+                    showAlert(`⚠️ ไม่สามารถดำเนินการได้: ${result.respMsg}`, "warning");
+                } 
+                else {
+                    // Error อื่นๆ (400, 500)
+                    showAlert(`❌ เกิดข้อผิดพลาด (${result.respCode}): ${result.respMsg}`, "error");
+                }
+
+            } catch (error) {
+                console.error("API Error:", error);
+                showAlert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้", "error");
+            } finally {
+                setButtonLoading(false);
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 🎨 ฟังก์ชันจัดการ UI (ตกแต่งหน้าจอ)
+        // ---------------------------------------------------------
+        function showAlert(message, type) {
+            const alertBox = document.getElementById('alertBox');
+            if (type === "hide") {
+                alertBox.classList.add('hidden');
+                return;
+            }
+
+            alertBox.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-800');
+            alertBox.textContent = message;
+
+            if (type === "error") {
+                alertBox.classList.add('bg-red-100', 'text-red-700');
+            } else if (type === "success") {
+                alertBox.classList.add('bg-green-100', 'text-green-700');
+            } else if (type === "warning") {
+                alertBox.classList.add('bg-yellow-100', 'text-yellow-800');
+            }
+        }
+
+        function setButtonLoading(isLoading) {
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('btnSpinner');
+            const btnText = document.getElementById('btnText');
+
+            if (isLoading) {
+                btn.disabled = true;
+                btn.classList.add('opacity-70', 'cursor-not-allowed');
+                spinner.classList.remove('hidden');
+                btnText.textContent = "กำลังเชื่อมต่อ...";
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                spinner.classList.add('hidden');
+                btnText.textContent = "เชื่อมต่อบัญชี";
+            }
+        }
+
+        function showSuccessState() {
+            // ซ่อนฟอร์ม แล้วแสดงปุ่มปิดหน้าต่างแทน
+            document.getElementById('linkForm').classList.add('hidden');
+            document.getElementById('closeBtn').classList.remove('hidden');
+        }
+
+        // โหลด LIFF ทันทีที่เปิดหน้าเว็บ
+        window.addEventListener('load', () => {
+            if (window.liff) initLiff();
+        });
+    </script>
+</body>
+</html>
